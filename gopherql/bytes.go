@@ -40,12 +40,24 @@ func (b *ByteReader) ReadString(size int) string {
 	return result
 }
 
+func (b *ByteReader) ReadBool() bool {
+	result := b.Contents[b.Offset] >= 1
+	b.Offset++
+	return result
+}
+
 func (b *ByteReader) ReadStringAt(start, end int) string {
 	return string(b.Contents[start:end])
 }
 
 func (b *ByteReader) ReadBytesAt(start, end int) []byte {
 	return b.Contents[start:end]
+}
+
+func (b *ByteReader) ReadBytes(size int) []byte {
+	result := b.Contents[b.Offset:b.Offset+size]
+	b.Offset += size
+	return result
 }
 
 func (b *ByteReader) ReadByteAsBool(val byte) bool {
@@ -76,6 +88,16 @@ func (w *ByteWriter) WriteUint32(val int) {
 func (w *ByteWriter) WriteUint8(val int) {
 	contents := make([]byte, 1)
 	contents[0] = uint8(val)
+	w.Contents = append(w.Contents, contents...)
+}
+
+func (w *ByteWriter) WriteUint16(val int) {
+	contents := make([]byte, 2)
+	binary.BigEndian.PutUint16(contents, uint16(val))
+	w.Contents = append(w.Contents, contents...)
+}
+
+func (w *ByteWriter) WriteBytes(contents []byte) {
 	w.Contents = append(w.Contents, contents...)
 }
 

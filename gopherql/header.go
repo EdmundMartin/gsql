@@ -79,6 +79,7 @@ func ReadHeader(file *os.File) (*Header, error) {
 }
 
 func WriteHeader(file *os.File, header *Header) error {
+	// TODO - Should simply write first 4096 bytes
 	_, err := file.Write(header.Bytes())
 	return err
 }
