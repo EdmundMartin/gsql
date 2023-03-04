@@ -22,6 +22,12 @@ func (b *ByteReader) ReadUint8() int {
 	return result
 }
 
+func (b *ByteReader) ReadByte() byte {
+	result := b.Contents[b.Offset]
+	b.Offset++
+	return result
+}
+
 func (b *ByteReader) ReadUint16() int {
 	result := binary.BigEndian.Uint16(b.Contents[b.Offset : b.Offset+uint16Size])
 	b.Offset += uint16Size
@@ -55,7 +61,7 @@ func (b *ByteReader) ReadBytesAt(start, end int) []byte {
 }
 
 func (b *ByteReader) ReadBytes(size int) []byte {
-	result := b.Contents[b.Offset:b.Offset+size]
+	result := b.Contents[b.Offset : b.Offset+size]
 	b.Offset += size
 	return result
 }
@@ -95,6 +101,10 @@ func (w *ByteWriter) WriteUint16(val int) {
 	contents := make([]byte, 2)
 	binary.BigEndian.PutUint16(contents, uint16(val))
 	w.Contents = append(w.Contents, contents...)
+}
+
+func (w *ByteWriter) WriteByte(content byte) {
+	w.Contents = append(w.Contents, content)
 }
 
 func (w *ByteWriter) WriteBytes(contents []byte) {

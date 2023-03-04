@@ -8,7 +8,11 @@ import (
 
 // TODO - Most of this should be private - once we are done lets go through and make stuff private
 
-const pageObjectPrefixLength = 15
+const (
+	pageObjectPrefixLength = 15
+	kindLeaf               = 0
+	kindNotLeaf            = 1
+)
 
 type PageObject struct {
 	Key           []byte
@@ -57,11 +61,11 @@ func blobObjectKey(key []byte, part uint32) []byte {
 
 func NewBlobPageObject(key, value []byte, tid, xid, part uint32) *PageObject {
 	return &PageObject{
-		Key: blobObjectKey(key, part),
-		Value: value,
-		IsBlobRef: false,
+		Key:           blobObjectKey(key, part),
+		Value:         value,
+		IsBlobRef:     false,
 		TransactionID: tid,
-		DeleteID: xid,
+		DeleteID:      xid,
 	}
 }
 
@@ -131,7 +135,6 @@ func (po PageObject) Bytes() []byte {
 	return bWriter.Bytes()
 }
 
-
 func PageObjectFromBytes(data []byte) (int, PageObject) {
 
 	bReader := NewByteReader(data)
@@ -160,7 +163,7 @@ func NewPage(kind byte, size int) *Page {
 	return &Page{
 		Kind: kind,
 		Used: pageHeaderSize,
-		Data: make([]byte, size - pageHeaderSize),
+		Data: make([]byte, size-pageHeaderSize),
 	}
 }
 
@@ -187,11 +190,11 @@ func (p *Page) Update(old PageObject, tid int) {
 }
 
 func (p *Page) Add(obj *PageObject) error {
-	
-	if int(p.Used) + obj.Length() > p.Size() {
+
+	if int(p.Used)+obj.Length() > p.Size() {
 		panic("page cannot fit object")
 	}
-	
+
 	objects := p.Objects()
 	if len(p.Versions(obj.Key, objects)) >= 2 {
 		return SQLStateError{
@@ -219,7 +222,6 @@ func (p *Page) Add(obj *PageObject) error {
 	return nil
 }
 
-
 func (p *Page) Replace(key []byte, transID int, value []byte) error {
 	p.Delete(key, transID)
 	obj := NewPageObject(key, value, uint32(transID), 0)
@@ -241,14 +243,14 @@ func (p *Page) Keys() [][]byte {
 func (p *Page) Delete(key []byte, transID int) bool {
 	offset := 0
 	didDelete := false
-	
+
 	for _, obj := range p.Objects() {
 		if bytes.Compare(key, obj.Key) == 0 && obj.TransactionID == uint32(transID) {
 			p.Used -= uint16(obj.Length())
 			didDelete = true
 			continue
 		}
-		
+
 		s := obj.Bytes()
 		for idx := range s {
 			p.Data[offset] = s[idx]
@@ -259,23 +261,23 @@ func (p *Page) Delete(key []byte, transID int) bool {
 }
 
 func (p *Page) Expire(key []byte, transID int, deleteID int) bool {
-	
+
 	offset := 0
 	modified := false
-	
+
 	for _, obj := range p.Objects() {
-		
-		if bytes.Compare(key, obj.Key) == 0 && obj.TransactionID == uint32(transID)  {
+
+		if bytes.Compare(key, obj.Key) == 0 && obj.TransactionID == uint32(transID) {
 			obj.DeleteID = uint32(deleteID)
 			modified = true
 		}
-		
+
 		s := obj.Bytes()
 		for idx := range s {
 			p.Data[offset] = s[idx]
 			offset++
 		}
-		
+
 	}
 	return modified
 }
@@ -294,7 +296,7 @@ func (p *Page) Objects() []*PageObject {
 	var objects []*PageObject
 	var n uint16
 
-	for n < p.Used - pageHeaderSize {
+	for n < p.Used-pageHeaderSize {
 		m, object := PageObjectFromBytes(p.Data[n:])
 		objects = append(objects, &object)
 		n += uint16(m)

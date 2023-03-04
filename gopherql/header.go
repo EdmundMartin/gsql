@@ -7,7 +7,7 @@ import (
 
 const (
 	currentVersion = 1
-	pageSize       = 4096
+	defaultPgSize  = 4096
 )
 
 type Header struct {
@@ -20,7 +20,7 @@ type Header struct {
 }
 
 func (h *Header) Bytes() []byte {
-	page := make([]byte, pageSize)
+	page := make([]byte, defaultPgSize)
 
 	binary.BigEndian.PutUint16(page[0:2], h.Version)
 	binary.BigEndian.PutUint32(page[2:6], h.SchemaVersion)
@@ -46,7 +46,7 @@ func NewHeader() *Header {
 	return &Header{
 		Version:       currentVersion,
 		SchemaVersion: 0,
-		PageSize:      pageSize,
+		PageSize:      defaultPgSize,
 		RootPage:      0,
 		TransactionID: 2,
 	}
@@ -70,7 +70,7 @@ func NewDatabaseFile(path string) error {
 }
 
 func ReadHeader(file *os.File) (*Header, error) {
-	contents := make([]byte, pageSize)
+	contents := make([]byte, defaultPgSize)
 	_, err := file.Read(contents)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,9 @@ func ReadHeader(file *os.File) (*Header, error) {
 }
 
 func WriteHeader(file *os.File, header *Header) error {
-	// TODO - Should simply write first 4096 bytes
+	if _, err := file.Seek(0, 0); err != nil {
+		return err
+	}
 	_, err := file.Write(header.Bytes())
 	return err
 }

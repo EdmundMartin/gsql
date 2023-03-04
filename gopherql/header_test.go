@@ -56,7 +56,7 @@ func TestReadHeader(t *testing.T) {
 		t.Error("unexpected transaction error")
 	}
 
-	if h.PageSize != pageSize {
+	if h.PageSize != defaultPgSize {
 		t.Error("unexpected page size")
 	}
 }

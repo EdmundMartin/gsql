@@ -31,7 +31,7 @@ func TestNewPageObject(t *testing.T) {
 
 func TestNewPage(t *testing.T) {
 
-	page := NewPage(0, pageSize)
+	page := NewPage(0, defaultPgSize)
 
 	key := []byte("EdmundMartin")
 	val := []byte("MartinEdmund")
