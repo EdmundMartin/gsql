@@ -316,3 +316,8 @@ func (p *Page) Versions(key []byte, objs []*PageObject) []int {
 
 	return versions
 }
+
+func (p *Page) Head() PageObject {
+	_, obj := PageObjectFromBytes(p.Data)
+	return obj
+}
