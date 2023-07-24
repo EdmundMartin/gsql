@@ -1,10 +1,28 @@
 package gopherql
 
-import "bytes"
+import (
+	"bytes"
+	"encoding/binary"
+	"sort"
+)
 
 type Btree struct {
 	PageSize int
 	Pager    Pager
+}
+
+type ReversibleInts []int
+
+func (r ReversibleInts) Len() int {
+	return len(r)
+}
+
+func (r ReversibleInts) Less(i, j int) bool {
+	return r[i] < r[j]
+}
+
+func (r ReversibleInts) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
 }
 
 func NewBTree(pager Pager) *Btree {
@@ -164,6 +182,72 @@ func (bt Btree) Remove(key []byte, transID int, handleBlob bool) error {
 	}
 
 	//TODO - Fill empty pages
+	bt.FillEmptyPages(emptyPages)
+
+	return nil
+}
+
+func (bt Btree) FillEmptyPages(emptyPages []int) error {
+
+	_ = sort.Reverse(ReversibleInts(emptyPages))
+
+	for _, emptyPage := range emptyPages {
+		lastPage, err := bt.Pager.FetchPage(bt.Pager.TotalPages() - 1)
+		if err != nil {
+			return err
+		}
+		lastPageKey := lastPage.Head().Key
+		pathToLastPage, _, err := bt.SearchPage(lastPageKey)
+		if err != nil {
+			return err
+		}
+
+		for idx := 0; idx < len(pathToLastPage)-1; idx++ {
+			if pathToLastPage[idx+1] == bt.Pager.TotalPages()-1 {
+				ancestor, err := bt.Pager.FetchPage(pathToLastPage[idx])
+				if err != nil {
+					return err
+				}
+				ancestor.Delete(lastPageKey, 0)
+
+				var buffer []byte
+				binary.LittleEndian.PutUint32(buffer, uint32(emptyPage))
+
+				newObj := NewPageObject(lastPageKey, buffer, 0, 0)
+				if err := ancestor.Add(newObj); err != nil {
+					return err
+				}
+				if err := bt.Pager.StorePage(pathToLastPage[idx], ancestor); err != nil {
+					return err
+				}
+			}
+		}
+
+		if err := bt.Pager.StorePage(emptyPage, lastPage); err != nil {
+			return err
+		}
+
+		if bt.Pager.GetRootPage() == bt.Pager.TotalPages()-1 {
+			if err := bt.Pager.SetRootPage(emptyPage); err != nil {
+				return err
+			}
+		}
+
+		if err := bt.Pager.TruncateLastPage(); err != nil {
+			return err
+		}
+
+	}
+
+	rootPage := bt.Pager.GetRootPage()
+	rtPage, err := bt.Pager.FetchPage(rootPage)
+	if err != nil {
+		return err
+	}
+
+	if rtPage.IsEmpty() {
+		return bt.Pager.TruncateAll()
+	}
 
 	return nil
 }
